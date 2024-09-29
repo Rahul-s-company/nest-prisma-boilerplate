@@ -1,0 +1,1050 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// Define the data model for the permissions table
+model Permission {
+  id             Int           @id @default(autoincrement())
+  canRead        Boolean       @map(name: "can_read")
+  canCreate      Boolean       @map(name: "can_create")
+  canUpdate      Boolean       @map(name: "can_update")
+  canDelete      Boolean       @map(name: "can_delete")
+  organization   Organization? @relation(fields: [organizationId], references: [id])
+  organizationId Int?          @map(name: "organization_id")
+  createdAt      DateTime      @default(now()) @map(name: "created_at")
+  updatedAt      DateTime      @updatedAt @map(name: "updated_at")
+  roleId         Int           @map(name: "role_id")
+  spaceId        Int           @map(name: "space_id")
+  role           UserRole      @relation(fields: [roleId], references: [id])
+  space          Space         @relation(fields: [spaceId], references: [id])
+
+  @@unique([roleId, spaceId])
+  @@map(name: "permission")
+}
+
+// Define the data model for the spaces table
+model Space {
+  id            Int          @id @default(autoincrement())
+  spaceParentId Int?         @map(name: "space_parent_id")
+  name          String       @unique
+  createdAt     DateTime     @default(now()) @map(name: "created_at")
+  updatedAt     DateTime     @updatedAt @map(name: "updated_at")
+  Permission    Permission[]
+
+  parent   Space?  @relation("SpaceParent", fields: [spaceParentId], references: [id])
+  children Space[] @relation("SpaceParent")
+
+  @@map(name: "space")
+}
+
+// Define the data model for the user roles table
+model UserRole {
+  id          Int          @id @default(autoincrement())
+  name        String       @unique
+  permissions Json?
+  createdAt   DateTime     @default(now()) @map(name: "created_at")
+  updatedAt   DateTime     @updatedAt @map(name: "updated_at")
+  Permission  Permission[]
+  User        User[]
+
+  @@map(name: "user_role")
+}
+
+// Define the data model for the organization table
+model Organization {
+  id                              Int                     @id @default(autoincrement())
+  salesforceOrgId                 String?                 @unique @map(name: "salesforce_org_id")
+  companyName                     String                  @map(name: "company_name")
+  companyWebsite                  String?                 @map(name: "company_website")
+  linkedInUrl                     String?                 @map(name: "linked_in_url")
+  industry                        String?
+  country                         String?
+  address                         String?
+  region                          String?
+  geo                             String?
+  organizationDomain              String?                 @map(name: "organization_domain")
+  socialMediaUrls                 String?                 @map(name: "social_media_urls")
+  subscriptionId                  Int?                    @map(name: "subscription_id")
+  subscribedAt                    DateTime?               @map(name: "subscribed_at")
+  createdAt                       DateTime                @default(now()) @map(name: "created_at")
+  updatedAt                       DateTime                @updatedAt @map(name: "updated_at")
+  status                          StatusType              @default(ACTIVE)
+  whatCrmPlatformUsed             String?                 @map(name: "what_crm_platform_used")
+  User                            User[]
+  SalesforceIntegration           SalesforceIntegration[]
+  ScoreCard                       ScoreCard[]
+  Event                           Event[]
+  Plan                            Plan[]
+  OpportunityOrganizationId       Opportunity[]           @relation("opportunityReceiverOrganization")
+  opportunityOriginOrganizationId Opportunity[]           @relation("opportunityOriginOrganization")
+  myOrganizationId                Partner[]               @relation("myOrganization")
+  partnerOrganizationId           Partner[]               @relation("partnerOrganization")
+  kpiOrganizationId               Kpi[]                   @relation("kpiOrganizationId")
+  Permission                      Permission[]
+
+  @@map(name: "organization")
+}
+
+// Define the data model for the users table
+model User {
+  id                     Int                     @id @default(autoincrement())
+  salesforceUserId       String?                 @unique @map(name: "salesforce_user_id")
+  organization           Organization?           @relation(fields: [organizationId], references: [id])
+  jobTitle               String?                 @map(name: "job_title")
+  firstName              String?                 @map(name: "first_name")
+  lastName               String?                 @map(name: "last_name")
+  email                  String                  @unique
+  password               String
+  deletedAt              DateTime?
+  createdAt              DateTime                @default(now()) @map(name: "created_at")
+  updatedAt              DateTime?               @updatedAt @map(name: "updated_at")
+  status                 StatusType              @default(PENDING)
+  isVerified             Boolean                 @default(false) @map(name: "is_verified")
+  role                   UserRole                @relation(fields: [roleId], references: [id])
+  roleId                 Int                     @map(name: "role_id")
+  organizationId         Int?                    @map(name: "organization_id")
+  whatCrmPlatformUsed    String?                 @map(name: "what_crm_platform_used")
+  industry               String?
+  country                String?
+  address                String?
+  region                 String?
+  geo                    String?
+  isInvitedBy            Int?                    @map(name: "is_invited_by")
+  isInvitationPending    Boolean?                @default(false) @map(name: "is_invitation_pending")
+  phoneNo                String?                 @map(name: "phone_no")
+  approvalId             Int?                    @map(name: "approval_id")
+  Token                  Token[]
+  OTP                    OTP[]
+  OpportunityInvite      OpportunityInvite[]
+  Kpi                    Kpi[]
+  ProjectActivity        ProjectActivity[]
+  RoomMember             RoomMember[]
+  Message                Message[]
+  Receiver               Receiver[]
+  AssetsRepo             AssetsRepo[]
+  AssetsRepoAccess       AssetsRepoAccess[]
+  AssetsRepoActivity     AssetsRepoActivity[]
+  requiredApprovalByUser PendingApprovalAction[] @relation("RequiredApprovalByUser")
+  UpdatedByUser          PendingApprovalAction[] @relation("UpdatedByUser")
+  ApprovedByUser         PendingApprovalAction[] @relation("ApprovedByUser")
+  invitedBy              User?                   @relation("UserInvitations", fields: [isInvitedBy], references: [id])
+  invitedUsers           User[]                  @relation("UserInvitations")
+  partnerInvitedByUserId Partner[]               @relation("partnerInvitedBy")
+
+  OwnedOpportunities     Opportunity[] @relation("opportunityOwnerUser")
+  ManagedOpportunities   Opportunity[] @relation("OpportunityAccountManager")
+  ManagedOwnerAccountant Opportunity[] @relation("OpportunityOwnerAccountManager")
+
+  ReceivedOpportunities Opportunity[] @relation("opportunityReceiver")
+  CreatedOpportunities  Opportunity[] @relation("opportunityCreatedBy")
+  OpportunityUpdatedBy  Opportunity[] @relation("opportunityUpdatedBy")
+
+  Partner             Partner[]
+  updatedPartnerUser  Partner[]  @relation("updatedPartnerUser")
+  SalesforceStageSync SalesforceStageSync[]
+
+  kpiCreatedUser Kpi[] @relation("kpiCreatedBy")
+  kpiUpdatedUser Kpi[] @relation("kpiUpdatedBy")
+
+  Notification        Notification[]
+  UserIsRead          Notification[] @relation("UserIsRead")
+  initiativeOwner     Initiative[]   @relation("initiativeOwner")
+  initiativeCreatedBy Initiative[]   @relation("initiativeCreatedBy")
+  initiativeUpdatedBy Initiative[]   @relation("initiativeUpdatedBy")
+
+  goalOwner     Goal[] @relation("goalOwner")
+  goalCreatedBy Goal[] @relation("goalCreatedBy")
+  goalUpdatedBy Goal[] @relation("goalUpdatedBy")
+
+  Plan               Plan[]
+  partnerPlanManager Plan[] @relation("partnerPlanManager")
+  planUpdatedByUser  Plan[] @relation(name: "planUpdatedByUser")
+
+  scoreCardCreatedBy ScoreCard[] @relation("scoreCardCreatedBy")
+  scoreCardUpdatedBy ScoreCard[] @relation("scoreCardUpdatedBy")
+
+  categoryCreatedBy    Category[]  @relation("categoryCreatedBy")
+  partnerScoreCardUser ScoreCard[] @relation("partnerScoreCardUser")
+
+  projectCreatedByUser Project[] @relation("projectCreatedByUser")
+  projectUpdatedByUser Project[] @relation("projectUpdatedByUser")
+  projectOwner         Project[] @relation("projectOwner")
+
+  dashboard          dashboard[]
+  dashboardCreatedBy dashboard[]     @relation("dashboardCreatedBy")
+  dashboardUpdatedBy dashboard[]     @relation("dashboardUpdatedBy")
+  AiChatHistory      AiChatHistory[]
+
+  @@map(name: "users")
+}
+
+// Define the data model for the token table
+model Token {
+  id           Int       @id @default(autoincrement())
+  type         String
+  accessToken  String    @map(name: "access_token")
+  refreshToken String    @map(name: "refresh_token")
+  instanceUrl  String?   @map(name: "instance_url")
+  user         User      @relation(fields: [userId], references: [id])
+  createdAt    DateTime  @default(now()) @map(name: "created_at")
+  updatedAt    DateTime? @updatedAt @map(name: "updated_at")
+  expirationAt DateTime? @map(name: "expiration_at")
+  userId       Int       @map(name: "user_id")
+
+  @@map(name: "token")
+}
+
+// Define the data model for the partners table
+model Partner {
+  id                    Int                    @id @default(autoincrement())
+  organization          Organization           @relation(fields: [organizationId], references: [id], name: "myOrganization")
+  organizationId        Int                    @map(name: "organization_id")
+  partnerType           String?                @map(name: "partner_type")
+  partnerOrganization   Organization           @relation(fields: [partnerOrganizationId], references: [id], name: "partnerOrganization")
+  partnerOrganizationId Int                    @map(name: "partner_organization_id")
+  user                  User                   @relation(fields: [partnerUserId], references: [id])
+  partnerUserId         Int                    @map(name: "partner_user_id")
+  partnerInvitedBy      User                   @relation(fields: [isInvitedBy], references: [id], name: "partnerInvitedBy")
+  isInvitedBy           Int                    @map(name: "is_invited_by")
+  createdAt             DateTime               @default(now()) @map(name: "created_at")
+  updatedAt             DateTime               @updatedAt @map(name: "updated_at")
+  updatedPartnerUser    User?                  @relation(fields: [updatedPartnerUserId], references: [id], name: "updatedPartnerUser")
+  updatedPartnerUserId  Int?                   @map(name: "updated_partner_user_id")
+  status                StatusType
+  Project               Project[]
+  Plan                  Plan[]
+  AssetFolder           AssetFolder[]
+  ScoreCard             ScoreCard[]            @relation(name: "ScoreCardPartner")
+  Calendar              Calendar[]
+
+  @@map(name: "partner")
+}
+
+model PartnerType {
+  id        Int      @id @default(autoincrement())
+  type      String
+  createdAt DateTime @default(now()) @map(name: "created_at")
+  updatedAt DateTime @updatedAt @map(name: "updated_at")
+
+  @@map(name: "partner_type")
+}
+
+// Define the data model for the salesforce_integration table
+model SalesforceIntegration {
+  id             Int          @id @default(autoincrement())
+  url            String
+  apiKey         Int          @map(name: "api_key")
+  apiSecret      String       @map(name: "api_secret")
+  organization   Organization @relation(fields: [organizationId], references: [id])
+  organizationId Int          @map(name: "organization_id")
+  createdAt      DateTime     @default(now()) @map(name: "created_at")
+
+  @@map(name: "salesforce_integration")
+}
+
+// Define the data model for the salesforce_integration table
+model SalesforceStageSync {
+  id            Int      @id @default(autoincrement())
+  user          User     @relation(fields: [userId], references: [id])
+  userId        Int      @map(name: "user_id")
+  stagesMapping Json     @map(name: "stages_mapping")
+  createdAt     DateTime @default(now()) @map(name: "created_at")
+  updatedAt     DateTime @updatedAt @map(name: "updated_at")
+
+  @@map(name: "salesforce_stage_sync")
+}
+
+// Define the data model for the otp table
+model OTP {
+  id           Int              @id @default(autoincrement())
+  otp          String
+  user         User             @relation(fields: [userId], references: [id])
+  userId       Int              @map(name: "user_id")
+  createdAt    DateTime         @default(now()) @map(name: "created_at")
+  deletedAt    DateTime?        @map(name: "deleted_at")
+  type         VerificationType @default(ACCOUNT_VERIFICATION)
+  expirationAt DateTime         @map(name: "expiration_at")
+
+  @@unique([userId, type])
+  @@map(name: "otp")
+}
+
+// Define the data model for the subscription table
+model Subscription {
+  id          Int      @id @default(autoincrement())
+  packageName Int      @unique @map(name: "package_name")
+  amount      String
+  maxMember   String   @map(name: "max_member")
+  isFree      Boolean  @map(name: "is_free")
+  duration    String
+  xattrs      String?
+  createdAt   DateTime @default(now()) @map(name: "created_at")
+  updatedAt   DateTime @updatedAt @map(name: "updated_at")
+
+  @@map(name: "subscription")
+}
+
+// Define the data model for the notifications table
+model Notification {
+  id          Int                @id @default(autoincrement())
+  resourceId  Int                @map(name: "resource_id")
+  type        NotificationType
+  message     String
+  user        User               @relation(fields: [userId], references: [id])
+  userId      Int                @map(name: "user_id")
+  UserIsRead  User?              @relation(fields: [isReadBy], references: [id], name: "UserIsRead")
+  isReadBy    Int?               @map(name: "is_read_by")
+  isDeletedBy Int?               @map(name: "is_deleted_by")
+  isRead      Boolean            @default(false) @map(name: "is_read")
+  status      NotificationStatus @default(ACTIVE)
+  createdAt   DateTime           @default(now()) @map(name: "created_at")
+  updatedAt   DateTime           @updatedAt @map(name: "updated_at")
+
+  @@map(name: "notifications")
+}
+
+// Define the data model for the opportunities table
+model Opportunity {
+  id                            Int          @id @default(autoincrement())
+  uniqueOpportunityId           String?      @map(name: "unique_opportunity_id")
+  opportunityOriginOrganization Organization @relation(fields: [originOrganizationId], references: [id], name: "opportunityOriginOrganization")
+
+  originOrganizationId Int @map(name: "origin_organization_id")
+
+  opportunityReceiverOrganization    Organization? @relation(fields: [opportunityReceivingOrganizationId], references: [id], name: "opportunityReceiverOrganization")
+  opportunityReceivingOrganizationId Int?          @map(name: "opportunity_receiving_organization_id")
+
+  opportunityOwnerUser   User @relation(fields: [opportunityOwnerUserId], references: [id], name: "opportunityOwnerUser")
+  opportunityOwnerUserId Int  @map(name: "opportunity_owner_user_id")
+
+  opportunityOwnerAccountManager   User? @relation(fields: [opportunityOwnerAccountManagerId], references: [id], name: "OpportunityOwnerAccountManager")
+  opportunityOwnerAccountManagerId Int?  @map(name: "opportunity_owner_account_manager_id")
+
+  opportunityAccountManager   User? @relation(fields: [opportunityAccountManagerId], references: [id], name: "OpportunityAccountManager")
+  opportunityAccountManagerId Int?  @map(name: "opportunity_account_manager_id")
+
+  opportunityReceiver   User? @relation(fields: [opportunityReceiverId], references: [id], name: "opportunityReceiver")
+  opportunityReceiverId Int?  @map(name: "opportunity_receiver_id")
+
+  opportunityCustomerUser OpportunityCustomer @relation(fields: [opportunityCustomerId], references: [id])
+  opportunityCustomerId   Int                 @map(name: "opportunity_customer_id")
+
+  opportunity                         String?
+  type                                OpportunityType?
+  useCase                             String?             @map(name: "use_case")
+  businessProblem                     String?             @map(name: "business_problem")
+  solutionOffered                     String?             @map(name: "solution_offered")
+  probability                         String?
+  value                               String?
+  source                              String?
+  stage                               String?
+  draftStage                          String?             @map(name: "draft_stage")
+  deliveryModel                       String?             @map(name: "delivery_model")
+  targetCloseDate                     DateTime?           @map(name: "target_close_date")
+  doYouNeedSupportFromPartnerCompany  String?             @map(name: "do_you_need_support_from_partner_company")
+  typeOfSupportNeedFromPartnerCompany String?             @map(name: "type_of_support_need_from_partner_company")
+  nextStep                            String?             @map(name: "next_step")
+  createdByUserId                     User                @relation(fields: [createdBy], references: [id], name: "opportunityCreatedBy")
+  createdBy                           Int                 @map(name: "created_by")
+  updatedByUserId                     User?               @relation(fields: [updatedBy], references: [id], name: "opportunityUpdatedBy")
+  updatedBy                           Int?                @map(name: "updated_by")
+  createdAt                           DateTime            @default(now()) @map(name: "created_at")
+  updatedAt                           DateTime            @updatedAt @map(name: "updated_at")
+  status                              StatusType
+  isFulfilledThroughMarketplace       Boolean?            @map(name: "is_fulfilled_through_marketplace")
+  salesforceOpportunityId             String?             @map(name: "salesforce_opportunity_id")
+  OpportunityAlert                    OpportunityAlert[]
+  OpportunityInvite                   OpportunityInvite[]
+
+  @@map(name: "opportunities")
+}
+
+model OpportunityCustomer {
+  id                Int           @id @default(autoincrement())
+  companyName       String        @map(name: "company_name")
+  website           String        @map(name: "website")
+  industry          String        @map(name: "industry")
+  city              String?       @map(name: "city")
+  state             String?       @map(name: "state")
+  address           String?       @map(name: "address")
+  country           String?       @map(name: "country")
+  postalCode        String?       @map(name: "postal_code")
+  customerFirstName String?       @map(name: "customer_first_name")
+  customerLastName  String?       @map(name: "customer_last_name")
+  customerEmail     String?       @map(name: "customer_email")
+  customerPhoneNo   String?       @map(name: "customer_phone_no")
+  createdAt         DateTime      @default(now()) @map(name: "created_at")
+  updatedAt         DateTime?     @updatedAt @map(name: "updated_at")
+  Opportunity       Opportunity[]
+
+  @@map(name: "opportunity_customer")
+}
+
+// Define the data model for the opportunity_alert table
+model OpportunityAlert {
+  id            Int                    @id @default(autoincrement())
+  opportunity   Opportunity            @relation(fields: [opportunityId], references: [id])
+  opportunityId Int                    @map(name: "opportunity_id")
+  period        String
+  message       String
+  createdAt     DateTime               @default(now()) @map(name: "created_at")
+  updatedAt     DateTime               @updatedAt @map(name: "updated_at")
+  status        OpportunityAlertStatus @default(ACTIVE)
+
+  @@map(name: "opportunity_alert")
+}
+
+// Define the data model for the opportunity_invite table
+model OpportunityInvite {
+  id                    Int               @id @default(autoincrement())
+  opportunity           Opportunity       @relation(fields: [opportunityId], references: [id])
+  opportunityId         Int               @map(name: "opportunity_id")
+  opportunityReceiver   User              @relation(fields: [opportunityReceiverId], references: [id])
+  opportunityReceiverId Int               @map(name: "opportunity_receiver_id")
+  status                OpportunityStatus
+  reason                String?
+  createdAt             DateTime          @default(now()) @map(name: "created_at")
+  updatedAt             DateTime          @updatedAt @map(name: "updated_at")
+
+  @@unique([opportunityId, opportunityReceiverId])
+  @@map(name: "opportunity_invite")
+}
+
+// Define the data model for the use_cases table
+model UseCase {
+  id        Int        @id
+  name      String
+  status    StatusType
+  createdAt DateTime   @default(now()) @map(name: "created_at")
+  updatedAt DateTime   @updatedAt @map(name: "updated_at")
+
+  @@map(name: "use_case")
+}
+
+// Define the data model for the kpi table
+model Kpi {
+  id                  Int                    @id @default(autoincrement())
+  name                String
+  ownerUser           User                   @relation(fields: [ownerUserId], references: [id])
+  ownerUserId         Int                    @map(name: "owner_user_id")
+  target              Int
+  attainment          Int
+  description         String
+  progress            Float                  @default(0)
+  status              ProgressStatus         @default(NOT_STARTED)
+  kpiApprovalActionId PendingApprovalAction? @relation(fields: [approvalId], references: [id], name: "kpiApprovalActionId")
+  approvalId          Int?                   @map(name: "approval_id")
+  kpiOrganizationId   Organization           @relation(fields: [organizationId], references: [id], name: "kpiOrganizationId")
+  organizationId      Int                    @map(name: "organization_id")
+  kpiCreatedBy        User?                  @relation(fields: [createdBy], references: [id], name: "kpiCreatedBy")
+  createdBy           Int?                   @map(name: "created_by")
+  kpiUpdatedBy        User?                  @relation(fields: [updatedBy], references: [id], name: "kpiUpdatedBy")
+  updatedBy           Int?                   @map(name: "updated_by")
+  createdAt           DateTime               @default(now()) @map(name: "created_at")
+  updatedAt           DateTime               @updatedAt @map(name: "updated_at")
+
+  @@map(name: "kpi")
+}
+
+// Define the data model for the score_card table
+model ScoreCard {
+  id                   Int          @id @default(autoincrement())
+  name                 String
+  Partner              Partner      @relation(fields: [partnerId], references: [id], name: "ScoreCardPartner")
+  partnerId            Int          @map(name: "partner_id")
+  partnerScoreCardUser User         @relation(fields: [partnerManagerId], references: [id], name: "partnerScoreCardUser")
+  partnerManagerId     Int          @map(name: "partner_manager_id")
+  partnerCompany       Organization @relation(fields: [partnerCompanyId], references: [id])
+  partnerCompanyId     Int          @map(name: "partner_company")
+  createdAt            DateTime     @default(now()) @map(name: "created_at")
+  updatedAt            DateTime     @updatedAt @map(name: "updated_at")
+  scoreCardCreatedBy   User         @relation(fields: [createdBy], references: [id], name: "scoreCardCreatedBy")
+  createdBy            Int          @map(name: "created_by")
+
+  scoreCardUpdatedBy User? @relation(fields: [updatedBy], references: [id], name: "scoreCardUpdatedBy")
+  updatedBy          Int?  @map(name: "updated_by")
+
+  ScoreCardCategory ScoreCardCategory[]
+
+  @@map(name: "score_card")
+}
+
+// Define the data model for the ScoreCardCategory table
+model ScoreCardCategory {
+  id          Int       @id @default(autoincrement())
+  scoreCard   ScoreCard @relation(fields: [scoreCardId], references: [id])
+  scoreCardId Int       @map(name: "score_card_id")
+  category    String
+  requirement String
+  target      Int
+  attainment  Int?      @default(0)
+  score       Float?    @default(0)
+  createdAt   DateTime  @default(now()) @map(name: "created_at")
+  updatedAt   DateTime  @updatedAt @map(name: "updated_at")
+  goalInfo    Goal?     @relation(fields: [goalId], references: [id], name: "goalId")
+  goalId      Int?      @map(name: "goal_id")
+  Goal        Goal[]
+
+  @@map(name: "score_card_category")
+}
+
+// Define the data model for the Category table
+model Category {
+  id        Int         @id @default(autoincrement())
+  category  String      @unique
+  status    StatusType? @default(ACTIVE)
+  createdAt DateTime    @default(now()) @map(name: "created_at")
+  updatedAt DateTime    @updatedAt @map(name: "updated_at")
+
+  categoryCreatedBy User? @relation(fields: [createdBy], references: [id], name: "categoryCreatedBy")
+  createdBy         Int?  @map(name: "created_by")
+
+  @@index([category])
+  @@map(name: "category")
+}
+
+// Define the data model for the Events table
+model Event {
+  id             Int              @id @default(autoincrement())
+  title          String
+  startAt        DateTime         @map(name: "start_at")
+  endAt          DateTime         @map(name: "end_at")
+  type           String
+  platform       String
+  description    String           @map(name: "description")
+  organization   Organization     @relation(fields: [organizationId], references: [id])
+  organizationId Int              @map(name: "organization_id")
+  repeatPeriod   RepeatPeriodType
+  userIds        String[]         @map(name: "user_ids")
+  remindBefore   DateTime         @map(name: "remind_before")
+  createdAt      DateTime         @default(now()) @map(name: "created_at")
+  updatedAt      DateTime         @updatedAt @map(name: "updated_at")
+
+  @@map(name: "events")
+}
+
+// Define the data model for the Plans table
+model Plan {
+  id                 Int          @id @default(autoincrement())
+  name               String
+  organization       Organization @relation(fields: [organizationId], references: [id])
+  organizationId     Int          @map(name: "organization_id")
+  partner            Partner      @relation(fields: [partnerId], references: [id])
+  partnerId          Int          @map(name: "partner_id")
+  partnerPlanManager User         @relation(fields: [partnerManagerId], references: [id], name: "partnerPlanManager")
+  partnerManagerId   Int          @map(name: "partner_manager_id")
+
+  status            ProgressStatus @default(NOT_STARTED)
+  xattrs            Json?
+  createdAt         DateTime       @default(now()) @map(name: "created_at")
+  updatedAt         DateTime       @updatedAt @map(name: "updated_at")
+  planCreatedByUser User           @relation(fields: [createdBy], references: [id])
+  createdBy         Int            @map(name: "created_by")
+  planUpdatedByUser User?          @relation(fields: [updatedBy], references: [id], name: "planUpdatedByUser")
+  updatedBy         Int?           @map(name: "updated_by")
+  completionDate    DateTime?      @map(name: "completion_date")
+
+  Initiative Initiative[]
+  Goal       Goal[]
+  AssetsRepo AssetsRepo[]
+  Project    Project[]
+
+  @@map(name: "plans")
+}
+
+// Define the data model for the Initiatives table
+model Initiative {
+  id                         Int                    @id @default(autoincrement())
+  plan                       Plan                   @relation(fields: [planId], references: [id])
+  planId                     Int                    @map(name: "plan_id")
+  name                       String
+  category                   String                 @map(name: "category")
+  industry                   String?
+  completionDate             DateTime               @map(name: "completion_date")
+  progress                   Float                  @default(0)
+  tags                       String?                @map(name: "tags")
+  initiativeOwner            User                   @relation(fields: [ownerId], references: [id], name: "initiativeOwner")
+  ownerId                    Int                    @map(name: "owner_id")
+  description                String
+  country                    String?
+  region                     String?
+  geo                        String?
+  initiativeApprovalActionId PendingApprovalAction? @relation(fields: [approvalId], references: [id], name: "initiativeApprovalActionId")
+  approvalId                 Int?                   @map(name: "approval_id")
+  project                    Project?               @relation(fields: [projectId], references: [id])
+  projectId                  Int?                   @map(name: "project_id")
+  status                     ProgressStatus         @default(NOT_STARTED)
+  createdAt                  DateTime               @default(now()) @map(name: "created_at")
+  updatedAt                  DateTime               @updatedAt @map(name: "updated_at")
+  Goal                       Goal[]
+
+  initiativeCreatedBy User @relation(fields: [createdBy], references: [id], name: "initiativeCreatedBy")
+  createdBy           Int  @map(name: "created_by")
+
+  initiativeUpdatedBy User? @relation(fields: [updatedBy], references: [id], name: "initiativeUpdatedBy")
+  updatedBy           Int?  @map(name: "updated_by")
+
+  @@map(name: "initiatives")
+}
+
+// Define the data model for the Goals table
+model Goal {
+  id                   Int                    @id @default(autoincrement())
+  plan                 Plan                   @relation(fields: [planId], references: [id])
+  planId               Int                    @map(name: "plan_id")
+  initiative           Initiative?            @relation(fields: [initiativeId], references: [id])
+  initiativeId         Int?                   @map(name: "initiative_id")
+  name                 String
+  goalOwner            User                   @relation(fields: [ownerId], references: [id], name: "goalOwner")
+  ownerId              Int                    @map(name: "owner_id")
+  industry             String?
+  completionDate       DateTime               @map(name: "completion_date")
+  startValue           Int                    @map(name: "start_value")
+  targetValue          Int                    @map(name: "target_value")
+  description          String
+  country              String?
+  region               String?
+  geo                  String?
+  project              Project?               @relation(fields: [projectId], references: [id])
+  projectId            Int?                   @map(name: "project_id")
+  scoreCardCategoryId  Int?                   @map(name: "score_card_category_id")
+  goalApprovalActionId PendingApprovalAction? @relation(fields: [approvalId], references: [id], name: "goalApprovalActionId")
+  approvalId           Int?                   @map(name: "approval_id")
+  status               ProgressStatus?        @default(NOT_STARTED)
+  createdAt            DateTime               @default(now()) @map(name: "created_at")
+  updatedAt            DateTime               @updatedAt @map(name: "updated_at")
+  category             String?
+
+  goalCreatedBy User @relation(fields: [createdBy], references: [id], name: "goalCreatedBy")
+  createdBy     Int  @map(name: "created_by")
+
+  goalUpdatedBy         User?               @relation(fields: [updatedBy], references: [id], name: "goalUpdatedBy")
+  updatedBy             Int?                @map(name: "updated_by")
+  ScoreCardCategory     ScoreCardCategory[]
+  ScoreCardCategoryGoal ScoreCardCategory[] @relation(name: "goalId")
+
+  @@map(name: "goal")
+}
+
+// Define the data model for the Projects table
+model Project {
+  id                   Int      @id @default(autoincrement())
+  name                 String
+  partner              Partner  @relation(fields: [partnerId], references: [id])
+  partnerId            Int      @map(name: "partner_id")
+  plan                 Plan     @relation(fields: [planId], references: [id])
+  planId               Int      @map(name: "plan_id")
+  description          String
+  createdAt            DateTime @default(now()) @map(name: "created_at")
+  updatedAt            DateTime @updatedAt @map(name: "updated_at")
+  projectCreatedByUser User     @relation(fields: [createdBy], references: [id], name: "projectCreatedByUser")
+  createdBy            Int      @map(name: "created_by")
+  projectUpdatedByUser User?    @relation(fields: [updatedBy], references: [id], name: "projectUpdatedByUser")
+  updatedBy            Int?     @map(name: "updated_by")
+  projectOwner         User?    @relation(fields: [ownerId], references: [id], name: "projectOwner")
+  ownerId              Int?     @map(name: "owner_id")
+
+  ProjectActivity ProjectActivity[]
+  Initiative      Initiative[]
+  Goal            Goal[]
+
+  @@map(name: "projects")
+}
+
+// Define the data model for the ProjectActivities table
+model ProjectActivity {
+  id                      Int            @id @default(autoincrement())
+  project                 Project        @relation(fields: [projectId], references: [id])
+  projectId               Int            @map(name: "project_id")
+  owner                   User           @relation(fields: [ownerId], references: [id])
+  ownerId                 Int            @map(name: "owner_i")
+  name                    String
+  tag                     String?
+  estimatedCompletionDate DateTime       @map(name: "estimated_completion_date")
+  description             String
+  createdAt               DateTime       @default(now()) @map(name: "created_at")
+  updatedAt               DateTime       @updatedAt @map(name: "updated_at")
+  status                  ProgressStatus @default(NOT_STARTED)
+
+  @@map(name: "project_activities")
+}
+
+// Define the data model for the ChatRooms table
+model ChatRoom {
+  id         Int          @id @default(autoincrement())
+  roomType   RoomType     @default(PERSONAL) @map(name: "room_type")
+  createdAt  DateTime     @default(now()) @map(name: "created_at")
+  updatedAt  DateTime     @updatedAt @map(name: "updated_at")
+  roomId     String       @map(name: "room_id")
+  channelArn String       @map(name: "channel_arn")
+  channelId  String       @default("") @map(name: "channel_id")
+  RoomMember RoomMember[]
+  Message    Message[]
+
+  @@map(name: "chat_rooms")
+}
+
+// Define the data model for the RoomMembers table
+model RoomMember {
+  id        Int        @id @default(autoincrement())
+  room      ChatRoom   @relation(fields: [roomId], references: [id])
+  roomId    Int        @map(name: "room_id")
+  user      User       @relation(fields: [userId], references: [id])
+  userId    Int        @map(name: "user_id")
+  status    StatusType
+  createdAt DateTime   @default(now()) @map(name: "created_at")
+  updatedAt DateTime   @updatedAt @map(name: "updated_at")
+
+  @@map(name: "room_members")
+}
+
+// Define the data model for the Messages table
+model Message {
+  id          Int         @id @default(autoincrement())
+  room        ChatRoom    @relation(fields: [roomId], references: [id])
+  roomId      Int         @map(name: "room_id")
+  sender      User        @relation(fields: [senderId], references: [id])
+  senderId    Int         @map(name: "sender_id")
+  messageType MessageType @map(name: "message_type")
+  message     String
+  createdAt   DateTime    @default(now()) @map(name: "created_at")
+  updatedAt   DateTime    @updatedAt @map(name: "updated_at")
+  Receiver    Receiver[]
+
+  @@map(name: "messages")
+}
+
+// Define the data model for the Receivers table
+model Receiver {
+  id         Int       @id @default(autoincrement())
+  message    Message   @relation(fields: [messageId], references: [id])
+  messageId  Int       @map(name: "message_id")
+  receiver   User      @relation(fields: [receiverId], references: [id])
+  receiverId Int       @map(name: "receiver_id")
+  readAt     DateTime? @map(name: "read_at")
+  createdAt  DateTime  @default(now()) @map(name: "created_at")
+  updatedAt  DateTime  @updatedAt @map(name: "updated_at")
+
+  @@map(name: "receivers")
+}
+
+// Define the data model for the AssetsRepo table
+model AssetsRepo {
+  id                 Int                  @id @default(autoincrement())
+  plan               Plan                 @relation(fields: [planId], references: [id])
+  planId             Int                  @map(name: "plan_id")
+  ownerUser          User                 @relation(fields: [ownerUserId], references: [id])
+  ownerUserId        Int                  @map(name: "owner_user_id")
+  initiativeId       Int?                 @map(name: "initiative_id")
+  assetType          String               @map(name: "asset_type")
+  assetRepoSourceId  Int                  @map(name: "asset_repo_source_id")
+  assetUrl           String               @map(name: "asset_url")
+  fileName           String?
+  size               Int?
+  status             StatusType
+  updatedBy          Int?                 @map(name: "updated_by")
+  createdAt          DateTime             @default(now()) @map(name: "created_at")
+  updatedAt          DateTime             @updatedAt @map(name: "updated_at")
+  AssetsRepoAccess   AssetsRepoAccess[]
+  AssetsRepoActivity AssetsRepoActivity[]
+
+  @@map(name: "assets_repo")
+}
+
+// Define the data model for the AssetsRepoAccess table
+model AssetsRepoAccess {
+  id             Int            @id @default(autoincrement())
+  user           User           @relation(fields: [userId], references: [id])
+  userId         Int            @map(name: "user_id")
+  assetsRepo     AssetsRepo     @relation(fields: [assetsRepoId], references: [id])
+  assetsRepoId   Int            @map(name: "assets_repo_id")
+  accessRepoType AccessRepoType @map(name: "access_repo_type")
+  createdAt      DateTime       @default(now()) @map(name: "created_at")
+  updatedAt      DateTime       @updatedAt @map(name: "updated_at")
+
+  @@map(name: "assets_repo_access")
+}
+
+// Define the data model for the AssetsRepoActivity table
+model AssetsRepoActivity {
+  id             Int            @id @default(autoincrement())
+  accessByUser   User           @relation(fields: [accessByUserId], references: [id])
+  accessByUserId Int            @map(name: "access_by_user_id")
+  assetsRepo     AssetsRepo     @relation(fields: [assetsRepoId], references: [id])
+  assetsRepoId   Int            @map(name: "assets_repo_id")
+  action         RepoActionType @map(name: "action")
+  createdAt      DateTime       @default(now()) @map(name: "created_at")
+  updatedAt      DateTime       @updatedAt @map(name: "updated_at")
+
+  @@map(name: "assets_repo_activity")
+}
+
+// Define the data model for the PendingApprovalActions table
+model PendingApprovalAction {
+  id                         Int          @id @default(autoincrement())
+  updateId                   Int          @map(name: "update_id")
+  updatedByUser              User         @relation("UpdatedByUser", fields: [updatedByUserId], references: [id])
+  updatedByUserId            Int          @map(name: "updated_by_user_id")
+  moduleType                 ModuleType   @map(name: "module_type")
+  updatedData                Json         @map(name: "updated_data")
+  requiredApprovalByUser     User         @relation("RequiredApprovalByUser", fields: [requiredApprovalBy], references: [id])
+  requiredApprovalBy         Int          @map(name: "required_approval_by")
+  approvedByUser             User?        @relation("ApprovedByUser", fields: [approvedByUserId], references: [id])
+  approvedByUserId           Int?         @map(name: "approved_by")
+  status                     StatusType
+  createdAt                  DateTime     @default(now()) @map(name: "created_at")
+  updatedAt                  DateTime     @updatedAt @map(name: "updated_at")
+  reason                     String?
+  kpiApprovalActionId        Kpi[]        @relation("kpiApprovalActionId")
+  initiativeApprovalActionId Initiative[] @relation("initiativeApprovalActionId")
+  goalApprovalActionId       Goal[]       @relation("goalApprovalActionId")
+
+  @@map(name: "pending_approval_actions")
+}
+
+// Define the data model for the Geo table
+model Geo {
+  id        Int      @id @default(autoincrement())
+  name      String
+  createdAt DateTime @default(now()) @map(name: "created_at")
+  updatedAt DateTime @updatedAt @map(name: "updated_at")
+
+  @@map(name: "geo")
+}
+
+// Define the data model for the Country table
+model Country {
+  id        Int      @id @default(autoincrement())
+  name      String
+  isoCode   String   @map(name: "iso_code")
+  createdAt DateTime @default(now()) @map(name: "created_at")
+  updatedAt DateTime @updatedAt @map(name: "updated_at")
+
+  @@map(name: "country")
+}
+
+// Define the data model for the Region table
+model Region {
+  id        Int      @id @default(autoincrement())
+  name      String
+  createdAt DateTime @default(now()) @map(name: "created_at")
+  updatedAt DateTime @updatedAt @map(name: "updated_at")
+
+  @@map(name: "region")
+}
+
+// Define the data model for the Industry table
+model Industry {
+  id        Int        @id @default(autoincrement())
+  name      String
+  status    StatusType
+  createdAt DateTime   @default(now()) @map(name: "created_at")
+  updatedAt DateTime   @updatedAt @map(name: "updated_at")
+
+  @@map(name: "industry")
+}
+
+// Define the data model for the contact_us table
+model ContactUs {
+  id        Int      @id @default(autoincrement())
+  name      String
+  email     String
+  message   String?
+  subject   String
+  createdAt DateTime @default(now()) @map(name: "created_at")
+
+  @@map(name: "contact_us")
+}
+
+// Define the data model for the opportunity_stages table
+model opportunityStages {
+  id          Int      @id @default(autoincrement())
+  stage       String
+  probability String
+  salesforceStage String  @map(name: "salesforce_stage")
+  createdAt   DateTime @default(now()) @map(name: "created_at")
+
+  @@map(name: "opportunity_stages")
+}
+
+// Define the data model for the asset_folder table
+model AssetFolder {
+  id           Int             @id @default(autoincrement())
+  planId       Int             @map(name: "plan_id")
+  resourceId   Int             @map(name: "resource_id")
+  initiativeId Int?            @map(name: "initiative_id")
+  assetName    String
+  type         AssetFolderType
+  status       StatusType      @default(ACTIVE)
+  createdBy    Int             @map(name: "created_by")
+  updatedBy    Int?            @map(name: "updated_by")
+  createdAt    DateTime        @default(now()) @map(name: "created_at")
+  updatedAt    DateTime        @updatedAt @map(name: "updated_at")
+  partnerId    Int             @map(name: "partner_id")
+  partner      Partner         @relation(fields: [partnerId], references: [id])
+
+  @@map(name: "asset_folder")
+}
+
+model Calendar {
+  id                   Int        @id @default(autoincrement())
+  title                String
+  requiredCandidates   String[]
+  startDateTime        DateTime   @map(name: "start_time")
+  endDateTime          DateTime   @map(name: "end_time")
+  frequency            Frequency
+  status               StatusType @default(ACTIVE)
+  partnerId            Int        @map(name: "partner_id")
+  partner              Partner    @relation(fields: [partnerId], references: [id])
+  description          String?
+  url                  String?
+  customRecurrenceRule Json?
+  createdBy            Int        @map(name: "created_by")
+  updatedBy            Int?       @map(name: "updated_by")
+  createdAt            DateTime   @default(now()) @map(name: "created_at")
+  updatedAt            DateTime   @updatedAt @map(name: "updated_at")
+
+  @@map(name: "calendar")
+}
+
+model dashboard {
+  id              Int      @id @default(autoincrement())
+  user            User     @relation(fields: [userId], references: [id])
+  userId          Int      @map(name: "user_id")
+  dataConfig      Json     @map(name: "data_config")
+  createdByUserId User     @relation(fields: [createdBy], references: [id], name: "dashboardCreatedBy")
+  createdBy       Int      @map(name: "created_by")
+  updatedByUserId User?    @relation(fields: [updatedBy], references: [id], name: "dashboardUpdatedBy")
+  updatedBy       Int?     @map(name: "updated_by")
+  createdAt       DateTime @default(now()) @map(name: "created_at")
+  updatedAt       DateTime @updatedAt @map(name: "updated_at")
+
+  @@map(name: "dashboard")
+}
+
+// Define the data model for the Events table
+model AiChatHistory {
+  id          Int      @id @default(autoincrement())
+  user        User     @relation(fields: [userId], references: [id])
+  userId      Int      @map(name: "user_id")
+  chatHistory Json     @map(name: "chat_history")
+  createdAt   DateTime @default(now()) @map(name: "created_at")
+  updatedAt   DateTime @updatedAt @map(name: "updated_at")
+
+  @@map(name: "ai_chat_history")
+}
+
+enum StatusType {
+  ACTIVE
+  INACTIVE
+  PENDING
+  ACCEPT
+  REJECT
+  CHANGE_PASSWORD
+  DRAFT
+}
+
+enum OpportunityType {
+  NEW_BUSINESS
+  RENEW_WITH_UPSELL
+  RENEW_NO_UPSELL
+}
+
+enum RepeatPeriodType {
+  DAY
+  WEEK
+  MONTH
+  YEAR
+}
+
+enum MessageType {
+  TEXT
+  IMAGE
+  AUDIO
+  VIDEO
+}
+
+enum AccessRepoType {
+  VIEW
+  UPDATE
+  REMOVE
+}
+
+enum RepoActionType {
+  OPEN
+  UPLOAD
+  UPDATE
+}
+
+enum ModuleType {
+  GOALS
+  INITIATIVES
+  KPI
+  PARTNER
+}
+
+enum VerificationType {
+  ACCOUNT_VERIFICATION
+  FORGOT_PASSWORD
+}
+
+enum OpportunityStatus {
+  ACCEPT
+  REJECT
+  PENDING
+}
+
+enum NotificationType {
+  OPPORTUNITY
+  GOAL
+  INITIATIVE
+  KPI
+  PLAN
+  PROJECT
+}
+
+enum NotificationStatus {
+  PENDING
+  ACTIVE
+  INACTIVE
+  DELETED
+}
+
+enum OpportunityAlertStatus {
+  ACTIVE
+  PENDING
+  EXECUTE
+  FAIL
+}
+
+enum ProgressStatus {
+  NOT_STARTED
+  IN_PROGRESS
+  COMPLETED
+}
+
+enum AssetFolderType {
+  INITIATIVE
+  GOAL
+  PLAN
+  PROJECT
+}
+
+enum Frequency {
+  DOES_NOT_REPEAT
+  DAILY
+  WEEKLY
+  MONTHLY
+  YEARLY
+  CUSTOM
+}
+
+enum RoomType {
+  PERSONAL
+  GROUP
+}
