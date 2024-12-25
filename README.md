@@ -93,7 +93,7 @@ These should be treated as the development main branch by the respective teams a
 - AWS SDK (v3)
 - RBAC (permission)
 - EsLint
-- pre-commit hook
+- husky
 
 ## TO-DO
 
